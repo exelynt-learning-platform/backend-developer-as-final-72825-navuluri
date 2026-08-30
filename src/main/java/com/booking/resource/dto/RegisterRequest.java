@@ -1,6 +1,5 @@
 package com.booking.resource.dto;
 
-import com.booking.resource.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
@@ -16,16 +15,17 @@ public class RegisterRequest {
     @Email(message = "Valid email is required")
     private String email;
 
-    private Role role = Role.ROLE_USER;
+    // Role is intentionally NOT exposed here.
+    // Public registration always assigns ROLE_USER.
+    // Only authenticated ADMINs can create other roles.
 
     public RegisterRequest() {
     }
 
-    public RegisterRequest(String username, String password, String email, Role role) {
+    public RegisterRequest(String username, String password, String email) {
         this.username = username;
         this.password = password;
         this.email = email;
-        this.role = role != null ? role : Role.ROLE_USER;
     }
 
     public String getUsername() {
@@ -50,13 +50,5 @@ public class RegisterRequest {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
     }
 }

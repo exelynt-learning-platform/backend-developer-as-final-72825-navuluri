@@ -78,7 +78,8 @@ public class ReservationService {
             }
         }
 
-        ReservationStatus initialStatus = request.getStatus() != null ? request.getStatus() : ReservationStatus.PENDING;
+        // Users creating reservations always start with PENDING status
+        ReservationStatus initialStatus = ReservationStatus.PENDING;
 
         Reservation reservation = new Reservation(
                 currentUser,
@@ -128,28 +129,34 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found with id: " + id));
 
-        // ADMIN can update all fields; USER can update/cancel their own reservation
-        if (currentUser.getRole() != Role.ROLE_ADMIN && !reservation.getUser().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You do not have permission to update this reservation");
-        }
-
-        if (request.getResourceId() != null && currentUser.getRole() == Role.ROLE_ADMIN) {
-            Resource resource = resourceRepository.findById(request.getResourceId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Resource not found with id: " + request.getResourceId()));
-            reservation.setResource(resource);
-        }
-
-        if (request.getStartTime() != null) {
-            reservation.setStartTime(request.getStartTime());
-        }
-        if (request.getEndTime() != null) {
-            reservation.setEndTime(request.getEndTime());
-        }
-        if (request.getStatus() != null) {
-            reservation.setStatus(request.getStatus());
-        }
-        if (request.getPrice() != null) {
-            reservation.setPrice(request.getPrice());
+        if (currentUser.getRole() == Role.ROLE_ADMIN) {
+            // ADMIN can update all fields
+            if (request.getResourceId() != null) {
+                Resource resource = resourceRepository.findById(request.getResourceId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Resource not found with id: " + request.getResourceId()));
+                reservation.setResource(resource);
+            }
+            if (request.getStartTime() != null) {
+                reservation.setStartTime(request.getStartTime());
+            }
+            if (request.getEndTime() != null) {
+                reservation.setEndTime(request.getEndTime());
+            }
+            if (request.getStatus() != null) {
+                reservation.setStatus(request.getStatus());
+            }
+            if (request.getPrice() != null) {
+                reservation.setPrice(request.getPrice());
+            }
+        } else {
+            // USER can only cancel their own reservation
+            if (!reservation.getUser().getId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("You do not have permission to update this reservation");
+            }
+            if (request.getStatus() != ReservationStatus.CANCELLED) {
+                throw new BadRequestException("Users can only cancel their own reservations. Use status: CANCELLED");
+            }
+            reservation.setStatus(ReservationStatus.CANCELLED);
         }
 
         Reservation updated = reservationRepository.save(reservation);
@@ -169,14 +176,20 @@ public class ReservationService {
         reservationRepository.delete(reservation);
     }
 
+    /**
+     * Gets the current authenticated user from SecurityContext.
+     * Fetches from DB to get full User entity including role.
+     * Authentication is guaranteed to be set by JwtAuthenticationFilter before reaching services.
+     */
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             throw new AccessDeniedException("User is not authenticated");
         }
         String username = authentication.getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found: " + username));
     }
 
     private Pageable createPageable(int page, int size, String sort) {

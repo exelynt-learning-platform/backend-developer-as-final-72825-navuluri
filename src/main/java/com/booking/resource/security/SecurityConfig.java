@@ -31,7 +31,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)) // For H2 Console
+                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public Endpoints
@@ -39,14 +39,14 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        // Resource RBAC: USER & ADMIN can READ; ADMIN can full CRUD
-                        .requestMatchers(HttpMethod.GET, "/api/resources/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN", "USER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/resources/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/resources/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/resources/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        // Resource RBAC - standardized to ROLE_ prefixed authorities
+                        .requestMatchers(HttpMethod.GET, "/api/resources/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/resources/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/resources/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/resources/**").hasRole("ADMIN")
 
-                        // Reservations RBAC: Authenticated users (Role rules handled at controller/service level)
-                        .requestMatchers("/api/reservations/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN", "USER", "ADMIN")
+                        // Reservations RBAC
+                        .requestMatchers("/api/reservations/**").hasAnyRole("USER", "ADMIN")
 
                         .anyRequest().authenticated()
                 );

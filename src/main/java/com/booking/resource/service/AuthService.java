@@ -6,7 +6,6 @@ import com.booking.resource.dto.RegisterRequest;
 import com.booking.resource.entity.Role;
 import com.booking.resource.entity.User;
 import com.booking.resource.exception.BadRequestException;
-
 import com.booking.resource.repository.UserRepository;
 import com.booking.resource.security.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -63,13 +62,12 @@ public class AuthService {
             throw new BadRequestException("Email is already in use");
         }
 
-        Role role = request.getRole() != null ? request.getRole() : Role.ROLE_USER;
-
+        // Public registration ALWAYS assigns ROLE_USER - no privilege escalation possible
         User user = new User(
                 request.getUsername(),
                 passwordEncoder.encode(request.getPassword()),
                 request.getEmail(),
-                role
+                Role.ROLE_USER
         );
 
         return userRepository.save(user);
