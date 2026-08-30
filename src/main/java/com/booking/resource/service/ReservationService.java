@@ -66,8 +66,13 @@ public class ReservationService {
         if (calculatedPrice == null) {
             if (resource.getPricePerHour() != null) {
                 long durationMinutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
-                double hours = Math.max(0.5, (double) durationMinutes / 60.0);
-                calculatedPrice = resource.getPricePerHour().multiply(BigDecimal.valueOf(hours)).setScale(2, RoundingMode.HALF_UP);
+                if (durationMinutes <= 0) {
+                    calculatedPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+                } else {
+                    BigDecimal hoursBd = BigDecimal.valueOf(durationMinutes)
+                            .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+                    calculatedPrice = resource.getPricePerHour().multiply(hoursBd).setScale(2, RoundingMode.HALF_UP);
+                }
             } else {
                 calculatedPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
             }
